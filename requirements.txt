@@ -1,0 +1,14 @@
+streamlit 
+numpy
+pandas
+streamlit-aggrid
+matplotlib
+seaborn 
+streamlit-option-menu
+streamlit-tags
+pillow
+pycountry
+sklearn
+scipy
+openpyxl
+streamlit-drawable-canvas
