@@ -110,42 +110,43 @@ with st.sidebar:
 
 
 if selected == "Home":
-    #top 10 strelcov
-    gls = all_players.sort_values(by = 'Gls',ascending = False).head(10)
-    gls = gls[['Player','Gls']]
-
-    # Top 10 strelcov za sezonu 2020/2021
-
-    x = gls['Player']
-    y = gls['Gls']
-
-    # plot
-    plt.figure(figsize=(7,7))
-
-
-    ax= sns.barplot(x=y, y=x, palette = 'dark', orient='h')
-    plt.xticks()
-    plt.xlabel('Počet gólov', size = 20) 
-    plt.ylabel('Meno', size = 20 ) 
-    plt.title('Top 10 strelcov')
-
-    for index, value in enumerate(y):
-        plt.text(value, index, str(value))
-
-    st.pyplot(plt)
+    video_file = open('videoFile.mp4', 'rb')
+    video_bytes = video_file.read()
+    st.video(video_bytes)
 
     
     
 if selected == "Recommend me":
     #AgGrid(all_players)
-    with st.sidebar.expander("Recommender System"):
+    with st.sidebar.expander("Recommender System",expanded=True):
         numberOfPlayers = st.number_input('Number of players to display',value=5,min_value=0,max_value=15)
         myTeam = st.selectbox("Choose your team", all_players["Squad"].unique().tolist(),index=22)
         df_myTeam= all_players.loc[all_players['Squad'] == myTeam]
         injuredPlayer = st.selectbox("Injured player", df_myTeam["Player"],index=2)
+      
         
         options = df_myTeam.values[:,:].tolist()
         #selected = st.multiselect('Choose your lineup11',options,help="ssdsdsdsdsd")   
+   
+        
+        # Top 5 strelcov za sezonu 2020/2021
+        gls = df_myTeam.sort_values(by = 'Gls',ascending = False).head(5)
+        gls = gls[['Player','Gls']]
+        x = gls['Player']
+        y = gls['Gls']
+        plt.figure(figsize=(3,3))
+        ax= sns.barplot(x=y, y=x, palette = 'dark', orient='h')
+        plt.xticks()
+        plt.xlabel('Number of goals', size = 10, color="k") 
+        plt.ylabel('Players', size =10 ) 
+        plt.title('Top 5 scorers - '+ myTeam,size=10)
+
+        for index, value in enumerate(y):
+            plt.text(value, index, str(value))
+
+        st.sidebar.pyplot(plt)
+       
+   
         
     AgGrid(df_myTeam)
     
@@ -181,14 +182,17 @@ if selected == "Recommend me":
         recommended_players_df.insert(1, "Similarity %", cosine_similarity)
         recommended_players_df = recommended_players_df.sort_values(by=['Similarity %'], ascending=False)
         recommended_players_df.reset_index(inplace = True,drop = True)
-
-        return recommended_players_df.head(numberOfPlayers)
-    
-    
-    recommended_players_df=recommend_similar_player_like(injuredPlayer)
         
-    st.write("Similar football players as ", injuredPlayer,":")
-    AgGrid(recommended_players_df)
+       
+        st.write("Similar football players as ", injuredPlayer,":")
+        
+        return AgGrid(recommended_players_df.head(numberOfPlayers))
+    
+    
+    recommend_similar_player_like(injuredPlayer)
+        
+   
+    #AgGrid(recommended_players_df)
    
     #myLineup = pd.DataFrame.from_records(selected)
     
@@ -200,18 +204,10 @@ if selected == "Recommend me":
 
 if selected == "Draw":
     # Specify canvas parameters in application
-    stroke_width = st.sidebar.slider("Stroke width: ", 1, 25, 3)
-    stroke_color = st.sidebar.color_picker("Stroke color hex: ")
-    bg_color = st.sidebar.color_picker("Background color hex: ", "#eee")
+    color = st.sidebar.color_picker("Color: ")
     bg_lineup = st.sidebar.radio(
          "Select your lineup",
-         ('','4-4-2', '4-3-3'))
-
-    
-  
-    drawing_mode = st.sidebar.selectbox(
-        "Drawing tool:", ("freedraw", "line", "rect", "circle", "transform")
-    )
+         ('','4-4-2', '4-3-3'),index=2)
     
     bg_image = ""
     if bg_lineup == '4-4-2':
@@ -223,12 +219,16 @@ if selected == "Draw":
     # Create a canvas component
     canvas_result = st_canvas(
     fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
-    stroke_width=stroke_width,
-    stroke_color=stroke_color,
-    background_color=bg_color,
+    stroke_width=2,
+    stroke_color=color,
+    background_color = "#eee",
     background_image=bg_image if bg_image else None,
     update_streamlit=False,
     height=400,
-    width=320,
-    drawing_mode=drawing_mode,
+    width=300,
+    drawing_mode="freedraw",
     key="canvas")
+    
+    
+
+
