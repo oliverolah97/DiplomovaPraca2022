@@ -1,29 +1,34 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-from st_aggrid import AgGrid
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pycountry
+from PIL import Image 
 from streamlit_option_menu import option_menu
 from streamlit_tags import st_tags_sidebar
-from PIL import Image 
-import pycountry
+from streamlit_drawable_canvas import st_canvas
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import NearestNeighbors
 from scipy import spatial
-from streamlit_drawable_canvas import st_canvas
+from st_aggrid import AgGrid
+from st_aggrid.grid_options_builder import GridOptionsBuilder
+
+import plotly.graph_objects as go
 
 icon_img = Image.open("icon.png")
+st.set_page_config(page_title="Web-based recommender systems", page_icon=icon_img)
 
-st.set_page_config(
-    page_title="Webové odporúčacie systémy",
-    page_icon=icon_img
-)
+st.sidebar.markdown("<h1 style='text-align: center; color: black;'>Diploma Thesis</h1>", unsafe_allow_html=True)
+
+with st.sidebar:
+    selected = option_menu("Menu", ["Home","Recommend me"],icons=['house-fill', 'person-lines-fill'],
+                           menu_icon="mortarboard-fill", default_index=0, orientation="vertical")
 
 @st.cache(allow_output_mutation=True,show_spinner=False)
 def load_data():
-    
     all_players = pd.read_excel("Big5_EuropeanLeagues_2021_2022.xlsx")
+    
     all_players['Player'] = all_players['Player'].str.split('\\').str[0]
     all_players['Nation'] = all_players['Nation'].str.split(' ').str[1]
     all_players['Age'] = all_players['Age'].str.split('-').str[0] 
@@ -90,11 +95,9 @@ def load_data():
 
 
     all_players.insert(2, "Nationality", countries)
-
-
+    
     all_players['Pos'] = all_players['Pos'].str[:2]
-
-
+    
     all_players["Position"] = all_players["Pos"].map({'GK':1,'DF':2,'MF':3,'FW':4})
     
     return all_players
@@ -102,69 +105,46 @@ def load_data():
 
 all_players = load_data()
 
-st.sidebar.markdown("<h1 style='text-align: center; color: black;'>Diplomová práca</h1>", unsafe_allow_html=True)
-
-with st.sidebar:
-    selected = option_menu("Menu", ["Home","Recommend me","Draw"],icons=['house-fill', 'person-lines-fill','palette-fill'],
-                           menu_icon="mortarboard-fill", default_index=0, orientation="vertical")
-
 
 if selected == "Home":
-    video_file = open('videoFile.mp4', 'rb')
-    video_bytes = video_file.read()
-    st.video(video_bytes)
+    st.markdown("<h1 style='text-align: center; color: black;'>Top 5 European leagues players stats</h1>", unsafe_allow_html=True)
+    gb = GridOptionsBuilder.from_dataframe(all_players)
+    gb.configure_pagination()
+    gridOptions = gb.build()
+    AgGrid(all_players, gridOptions=gridOptions)
 
-    
-    
 if selected == "Recommend me":
-    #AgGrid(all_players)
     with st.sidebar.expander("Recommender System",expanded=True):
-        numberOfPlayers = st.number_input('Number of players to display',value=5,min_value=0,max_value=15)
+        numberOfPlayers = st.number_input('Number of players to display',value=3,min_value=1,max_value=5)
         myTeam = st.selectbox("Choose your team", all_players["Squad"].unique().tolist(),index=22)
         df_myTeam= all_players.loc[all_players['Squad'] == myTeam]
-        injuredPlayer = st.selectbox("Injured player", df_myTeam["Player"],index=2)
-      
+        df_myTeam.reset_index(inplace = True,drop = True)
+        injuredPlayer = st.selectbox("Injured player", df_myTeam["Player"],index=1)
+        fromWhere = st.radio("Recommendations",('Only from player position','From all position',),index=0)
         
-        options = df_myTeam.values[:,:].tolist()
-        #selected = st.multiselect('Choose your lineup11',options,help="ssdsdsdsdsd")   
-   
-        
-        # Top 5 strelcov za sezonu 2020/2021
-        gls = df_myTeam.sort_values(by = 'Gls',ascending = False).head(5)
-        gls = gls[['Player','Gls']]
-        x = gls['Player']
-        y = gls['Gls']
-        plt.figure(figsize=(3,3))
-        ax= sns.barplot(x=y, y=x, palette = 'dark', orient='h')
-        plt.xticks()
-        plt.xlabel('Number of goals', size = 10, color="k") 
-        plt.ylabel('Players', size =10 ) 
-        plt.title('Top 5 scorers - '+ myTeam,size=10)
-
-        for index, value in enumerate(y):
-            plt.text(value, index, str(value))
-
-        st.sidebar.pyplot(plt)
+        options = df_myTeam.values[:,:]
        
-   
-        
-    AgGrid(df_myTeam)
+    with st.expander("My team - "+myTeam,expanded=False):
+       # st.write("My team -", myTeam)    
+        AgGrid(df_myTeam)
     
-    statistics = all_players.iloc[:, 6:]
+    statistics = df_myTeam.iloc[:, 6:]
     scaler = MinMaxScaler()
     X = pd.DataFrame(scaler.fit_transform(statistics), columns=statistics.columns)
-    recommendations = NearestNeighbors(n_neighbors=50)
+    n = df_myTeam.Player.count()
+    recommendations = NearestNeighbors(n_neighbors=n)
     recommendations.fit(X)
     player_index = recommendations.kneighbors(X,return_distance=False)
     
     players = []
     cosine_similarity = []
     values = []
+   
     def get_index(x):
-        return all_players[all_players['Player']==x].index.tolist()[0]
+        return df_myTeam[df_myTeam['Player']==x].index.tolist()[0]
 
     def get_position(x):
-        return all_players[all_players['Player']==x].Pos.tolist()[0]
+        return df_myTeam[df_myTeam['Player']==x].Pos.tolist()[0]
 
     def recommend_similar_player_like(player):
         players.clear()
@@ -173,62 +153,53 @@ if selected == "Recommend me":
         index=  get_index(player)
         position=  get_position(player)
         for i in player_index[index][1:]:
-            if(all_players.iloc[i]['Pos']==position):
-                players.append(all_players.iloc[i]['Player'])
-                cosine_similarity.append(np.round((1 - spatial.distance.cosine(statistics.iloc[index], statistics.iloc[i]))*100,2))
-                values.append(all_players.loc[i, all_players.columns != 'Player'])
-        recommended_players_df = pd.DataFrame(values, columns=all_players.columns.values[1:])
+            if(fromWhere == "Only from player position" and df_myTeam.iloc[i]['Pos']==position):
+                players.append(df_myTeam.iloc[i]['Player'])
+                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index], X.iloc[i]))*100,2))
+                values.append(df_myTeam.loc[i, df_myTeam.columns != 'Player'])
+            elif(fromWhere == "From all position"):
+                players.append(df_myTeam.iloc[i]['Player'])
+                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index], X.iloc[i]))*100,2))
+                values.append(df_myTeam.loc[i, df_myTeam.columns != 'Player'])
+                
+        recommended_players_df = pd.DataFrame(values, columns=df_myTeam.columns.values[1:])
         recommended_players_df.insert(0, "Player", players)
         recommended_players_df.insert(1, "Similarity %", cosine_similarity)
         recommended_players_df = recommended_players_df.sort_values(by=['Similarity %'], ascending=False)
         recommended_players_df.reset_index(inplace = True,drop = True)
         
-       
-        st.write("Similar football players as ", injuredPlayer,":")
+        st.write("Similar football players as", injuredPlayer+":")
         
-        return AgGrid(recommended_players_df.head(numberOfPlayers))
+        return recommended_players_df.head(numberOfPlayers)
     
+    df_RecommendedPlayers = recommend_similar_player_like(injuredPlayer)
+    AgGrid(df_RecommendedPlayers)
     
-    recommend_similar_player_like(injuredPlayer)
-        
-   
-    #AgGrid(recommended_players_df)
-   
-    #myLineup = pd.DataFrame.from_records(selected)
+    aaa = pd.DataFrame(scaler.fit_transform(df_RecommendedPlayers.iloc[:, 9:30]), columns=df_RecommendedPlayers.columns[9:30])
     
-    #if myLineup.empty:
-     #   st.write("LineUp empty")
-    #else:
-     #   myLineup.columns = df_myTeam.columns.tolist()
-      #  AgGrid(myLineup)
+    fig = go.Figure()
 
-if selected == "Draw":
-    # Specify canvas parameters in application
-    color = st.sidebar.color_picker("Color: ")
-    bg_lineup = st.sidebar.radio(
-         "Select your lineup",
-         ('','4-4-2', '4-3-3'),index=2)
-    
-    bg_image = ""
-    if bg_lineup == '4-4-2':
-            bg_image = Image.open("lineup4_4_2.png")
+    for i in range(len(df_RecommendedPlayers.index)):
+        fig.add_trace(
+                    go.Scatterpolar(
+                                    r=aaa.loc[i].values,
+                                    theta=aaa.columns,
+                                    fill='toself',
+                                    #fillcolor = 'aliceblue',
+                                    name=df_RecommendedPlayers["Player"].loc[i]+
+                                    " (Similarity "+str(df_RecommendedPlayers["Similarity %"].loc[i]) +" %)",
+                                    showlegend=True,
+                                    )
+                    )
 
-    elif bg_lineup == "4-3-3":
-            bg_image = Image.open("lineup4_3_3.png")
-  
-    # Create a canvas component
-    canvas_result = st_canvas(
-    fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
-    stroke_width=2,
-    stroke_color=color,
-    background_color = "#eee",
-    background_image=bg_image if bg_image else None,
-    update_streamlit=False,
-    height=400,
-    width=300,
-    drawing_mode="freedraw",
-    key="canvas")
-    
-    
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                            visible=True,
+                             range=[-0.1, 1.1]
+                        )
+                ),
 
-
+        title="Similar players to "+ injuredPlayer
+    )
+    st.plotly_chart(fig, use_container_width=True)
