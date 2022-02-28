@@ -7,7 +7,6 @@ import pycountry
 from PIL import Image 
 from streamlit_option_menu import option_menu
 from streamlit_tags import st_tags_sidebar
-from streamlit_drawable_canvas import st_canvas
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import NearestNeighbors
 from scipy import spatial
@@ -119,22 +118,24 @@ if selected == "Recommend me":
         myTeam = st.selectbox("Choose your team", all_players["Squad"].unique().tolist(),index=22)
         df_myTeam= all_players.loc[all_players['Squad'] == myTeam]
         df_myTeam.reset_index(inplace = True,drop = True)
-        injuredPlayer = st.selectbox("Injured player", df_myTeam["Player"],index=1)
+        injuredPlayer = st.selectbox("Injured player", df_myTeam["Player"],index=0)
         fromWhere = st.radio("Recommendations",('Only from player position','From all position',),index=0)
         
         options = df_myTeam.values[:,:]
        
-    with st.expander("My team - "+myTeam,expanded=False):
-       # st.write("My team -", myTeam)    
+    with st.expander("My team - "+myTeam,expanded=False):  
         AgGrid(df_myTeam)
     
-    statistics = df_myTeam.iloc[:, 6:]
-    scaler = MinMaxScaler()
+    statistics = df_myTeam.iloc[:, 8:]
+    scaler = MinMaxScaler(feature_range=(0,5))
     X = pd.DataFrame(scaler.fit_transform(statistics), columns=statistics.columns)
     n = df_myTeam.Player.count()
     recommendations = NearestNeighbors(n_neighbors=n)
     recommendations.fit(X)
     player_index = recommendations.kneighbors(X,return_distance=False)
+    
+    
+    X['Player'] = df_myTeam['Player'].values.copy()
     
     players = []
     cosine_similarity = []
@@ -155,11 +156,11 @@ if selected == "Recommend me":
         for i in player_index[index][1:]:
             if(fromWhere == "Only from player position" and df_myTeam.iloc[i]['Pos']==position):
                 players.append(df_myTeam.iloc[i]['Player'])
-                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index], X.iloc[i]))*100,2))
+                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index,:22], X.iloc[i,:22]))*100,2))
                 values.append(df_myTeam.loc[i, df_myTeam.columns != 'Player'])
             elif(fromWhere == "From all position"):
                 players.append(df_myTeam.iloc[i]['Player'])
-                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index], X.iloc[i]))*100,2))
+                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index,:22], X.iloc[i,:22]))*100,2))
                 values.append(df_myTeam.loc[i, df_myTeam.columns != 'Player'])
                 
         recommended_players_df = pd.DataFrame(values, columns=df_myTeam.columns.values[1:])
@@ -175,31 +176,28 @@ if selected == "Recommend me":
     df_RecommendedPlayers = recommend_similar_player_like(injuredPlayer)
     AgGrid(df_RecommendedPlayers)
     
-    aaa = pd.DataFrame(scaler.fit_transform(df_RecommendedPlayers.iloc[:, 9:30]), columns=df_RecommendedPlayers.columns[9:30])
-    
     fig = go.Figure()
 
-    for i in range(len(df_RecommendedPlayers.index)):
-        fig.add_trace(
-                    go.Scatterpolar(
-                                    r=aaa.loc[i].values,
-                                    theta=aaa.columns,
-                                    fill='toself',
-                                    #fillcolor = 'aliceblue',
-                                    name=df_RecommendedPlayers["Player"].loc[i]+
-                                    " (Similarity "+str(df_RecommendedPlayers["Similarity %"].loc[i]) +" %)",
-                                    showlegend=True,
-                                    )
+    index_injuredPlayer = get_index(injuredPlayer)
+
+    fig.add_trace(go.Scatterpolar(r=X.iloc[index_injuredPlayer,:24].values,
+                                  theta=X.columns[:24],
+                                  fill='toself',
+                                  name=X["Player"].iloc[index_injuredPlayer]+" (Injured player)",
+                                  showlegend=True,
+                                 )
                     )
 
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                            visible=True,
-                             range=[-0.1, 1.1]
-                        )
-                ),
+    for i in range(len(df_RecommendedPlayers.index)):
+        index_RecommendedPlayers = get_index(df_RecommendedPlayers["Player"].iloc[i])
+        fig.add_trace(go.Scatterpolar(r=X.iloc[index_RecommendedPlayers,:24].values,
+                                      theta=X.columns[:24],
+                                      fill='toself',
+                                      name=X["Player"].iloc[index_RecommendedPlayers]+
+                                      " (Similarity "+str(df_RecommendedPlayers["Similarity %"].loc[i]) +" %)",
+                                      showlegend=True,
+                                     )
+                    )
 
-        title="Similar players to "+ injuredPlayer
-    )
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True,range=[-0.50, 5.50])),title="Similar players to "+ injuredPlayer)
     st.plotly_chart(fig, use_container_width=True)
