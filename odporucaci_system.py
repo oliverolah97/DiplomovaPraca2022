@@ -200,4 +200,4 @@ if selected == "Recommend me":
                     )
 
     fig.update_layout(polar=dict(radialaxis=dict(visible=True,range=[-0.50, 5.50])),title="Similar players to "+ injuredPlayer)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=False)
