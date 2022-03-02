@@ -15,6 +15,7 @@ from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 import plotly.graph_objects as go
 
+abbreviations = Image.open("abbreviations.png")
 icon_img = Image.open("icon.png")
 st.set_page_config(page_title="Web-based recommender systems", page_icon=icon_img)
 
@@ -104,6 +105,8 @@ def load_data():
 
 all_players = load_data()
 
+with st.sidebar.expander("Abbreviations",expanded=False):  
+    st.image(abbreviations)
 
 if selected == "Home":
     st.markdown("<h1 style='text-align: center; color: black;'>Top 5 European leagues players stats</h1>", unsafe_allow_html=True)
