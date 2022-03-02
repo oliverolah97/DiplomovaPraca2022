@@ -122,7 +122,7 @@ if selected == "Recommend me":
         fromWhere = st.radio("Recommendations",('Only from player position','From all position',),index=0)
         
         options = df_myTeam.values[:,:]
-       
+      
     with st.expander("My team - "+myTeam,expanded=False):  
         AgGrid(df_myTeam)
     
@@ -200,4 +200,6 @@ if selected == "Recommend me":
                     )
 
     fig.update_layout(polar=dict(radialaxis=dict(visible=True,range=[-0.50, 5.50])),title="Similar players to "+ injuredPlayer)
-    st.plotly_chart(fig, use_container_width=False)
+    fig.update_layout(legend=dict(orientation="h",yanchor="bottom",y=-0.70,xanchor="auto",x=0.55))
+    
+    st.plotly_chart(fig, use_container_width=True)
