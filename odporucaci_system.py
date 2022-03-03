@@ -159,11 +159,11 @@ if selected == "Recommend me":
         for i in player_index[index][1:]:
             if(fromWhere == "Only from player position" and df_myTeam.iloc[i]['Pos']==position):
                 players.append(df_myTeam.iloc[i]['Player'])
-                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index,:22], X.iloc[i,:22]))*100,2))
+                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index,:24], X.iloc[i,:24]))*100,2))
                 values.append(df_myTeam.loc[i, df_myTeam.columns != 'Player'])
             elif(fromWhere == "From all position"):
                 players.append(df_myTeam.iloc[i]['Player'])
-                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index,:22], X.iloc[i,:22]))*100,2))
+                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index,:24], X.iloc[i,:24]))*100,2))
                 values.append(df_myTeam.loc[i, df_myTeam.columns != 'Player'])
                 
         recommended_players_df = pd.DataFrame(values, columns=df_myTeam.columns.values[1:])
