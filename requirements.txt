@@ -11,6 +11,5 @@ seaborn
 streamlit 
 streamlit-aggrid
 streamlit-option-menu
-streamlit-tags
 
 
