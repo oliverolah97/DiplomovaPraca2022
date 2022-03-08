@@ -1,19 +1,17 @@
-import streamlit as st
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+from PIL import Image
+import plotly.graph_objects as go
 import pycountry
-from PIL import Image 
-from streamlit_option_menu import option_menu
-from streamlit_tags import st_tags_sidebar
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import NearestNeighbors
 from scipy import spatial
+import seaborn as sns
+import streamlit as st
 from st_aggrid import AgGrid
 from st_aggrid.grid_options_builder import GridOptionsBuilder
-
-import plotly.graph_objects as go
+from streamlit_option_menu import option_menu
 
 abbreviations = Image.open("abbreviations.png")
 icon_img = Image.open("icon.png")
@@ -22,16 +20,17 @@ st.set_page_config(page_title="Web-based recommender systems", page_icon=icon_im
 st.sidebar.markdown("<h1 style='text-align: center; color: black;'>Diploma Thesis</h1>", unsafe_allow_html=True)
 
 with st.sidebar:
-    selected = option_menu("Menu", ["Home","Recommend me"],icons=['house-fill', 'person-lines-fill'],
+    selected = option_menu("Menu", ["Home", "Recommend me"], icons=['house-fill', 'person-lines-fill'],
                            menu_icon="mortarboard-fill", default_index=0, orientation="vertical")
 
-@st.cache(allow_output_mutation=True,show_spinner=False)
+
+@st.cache(allow_output_mutation=True, show_spinner=False)
 def load_data():
     all_players = pd.read_excel("Big5_EuropeanLeagues_2021_2022.xlsx")
-    
+
     all_players['Player'] = all_players['Player'].str.split('\\').str[0]
     all_players['Nation'] = all_players['Nation'].str.split(' ').str[1]
-    all_players['Age'] = all_players['Age'].str.split('-').str[0] 
+    all_players['Age'] = all_players['Age'].str.split('-').str[0]
 
     all_players["Age"] = all_players["Age"].astype("float")
     all_players["Age"] = all_players["Age"].astype("Int64")
@@ -41,7 +40,6 @@ def load_data():
     all_players["Comp"] = all_players["Comp"].apply(lambda x: x.replace("de Bundesliga", "Bundesliga"))
     all_players["Comp"] = all_players["Comp"].apply(lambda x: x.replace("es La Liga", "La Liga"))
     all_players["Comp"] = all_players["Comp"].apply(lambda x: x.replace("it Serie A", "Serie A"))
-
 
     all_players["Nation"] = all_players["Nation"].apply(lambda x: x.replace("ALG", "DZA"))
     all_players["Nation"] = all_players["Nation"].apply(lambda x: x.replace("ANG", "AGO"))
@@ -74,135 +72,143 @@ def load_data():
     all_players["Nation"] = all_players["Nation"].apply(lambda x: x.replace("ZIM", "ZWE"))
     all_players["Nation"] = all_players["Nation"].apply(lambda x: x.replace("ZAM", "ZMB"))
 
-
     countries = []
     for i in range(len(all_players.index)):
-        if(all_players.iloc[i,1]=="ENG"):
+        if (all_players.iloc[i, 1] == "ENG"):
             name = "England"
-        elif(all_players.iloc[i,1]=="NIR"):
+        elif (all_players.iloc[i, 1] == "NIR"):
             name = "Northern Ireland"
-        elif(all_players.iloc[i,1]=="SCO"):
+        elif (all_players.iloc[i, 1] == "SCO"):
             name = "Scotland"
-        elif(all_players.iloc[i,1]=="WAL"):
+        elif (all_players.iloc[i, 1] == "WAL"):
             name = "Wales"
 
-        elif(all_players.iloc[i,1]=="KVX"):
+        elif (all_players.iloc[i, 1] == "KVX"):
             name = "Kosovo"
         else:
-            name = pycountry.countries.get(alpha_3=all_players.iloc[i,1]).name
+            name = pycountry.countries.get(alpha_3=all_players.iloc[i, 1]).name
 
         countries.append(name)
 
-
     all_players.insert(2, "Nationality", countries)
-    
+
     all_players['Pos'] = all_players['Pos'].str[:2]
-    
-    all_players["Position"] = all_players["Pos"].map({'GK':1,'DF':2,'MF':3,'FW':4})
-    
+
+    all_players["Position"] = all_players["Pos"].map({'GK': 1, 'DF': 2, 'MF': 3, 'FW': 4})
+
     return all_players
 
 
 all_players = load_data()
 
-with st.sidebar.expander("Abbreviations",expanded=False):  
+with st.sidebar.expander("Abbreviations", expanded=False):
     st.image(abbreviations)
 
 if selected == "Home":
-    st.markdown("<h1 style='text-align: center; color: black;'>Top 5 European leagues players stats</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: black;'>Top 5 European leagues players stats</h1>",
+                unsafe_allow_html=True)
     gb = GridOptionsBuilder.from_dataframe(all_players)
     gb.configure_pagination()
     gridOptions = gb.build()
     AgGrid(all_players, gridOptions=gridOptions)
 
 if selected == "Recommend me":
-    with st.sidebar.expander("Recommender System",expanded=True):
-        numberOfPlayers = st.number_input('Number of players to display',value=3,min_value=1,max_value=5)
-        myTeam = st.selectbox("Choose your team", all_players["Squad"].unique().tolist(),index=22)
-        df_myTeam= all_players.loc[all_players['Squad'] == myTeam]
-        df_myTeam.reset_index(inplace = True,drop = True)
-        injuredPlayer = st.selectbox("Injured player", df_myTeam["Player"],index=0)
-        fromWhere = st.radio("Recommendations",('Only from player position','From all position',),index=0)
-        
-        options = df_myTeam.values[:,:]
-      
-    with st.expander("My team - "+myTeam,expanded=False):  
-        AgGrid(df_myTeam)
-    
+    with st.sidebar.expander("Recommender System", expanded=True):
+        numberOfPlayers = st.number_input('Number of players to display', value=3, min_value=1, max_value=5)
+        myTeam = st.selectbox("Choose your team", all_players["Squad"].unique().tolist(), index=22)
+        df_myTeam = all_players.loc[all_players['Squad'] == myTeam]
+        df_myTeam.reset_index(inplace=True, drop=True)
+        injuredPlayer = st.selectbox("Injured player", df_myTeam["Player"], index=0)
+        fromWhere = st.radio("Recommendations", ('Only from player position', 'From all position',), index=0)
+
+        options = df_myTeam.values[:, :]
+
+    with st.expander("My team - " + myTeam, expanded=False):
+        gb = GridOptionsBuilder.from_dataframe(df_myTeam)
+        gb.configure_pagination()
+        gridOptions = gb.build()
+        AgGrid(df_myTeam, gridOptions=gridOptions)
+
     statistics = df_myTeam.iloc[:, 8:]
-    scaler = MinMaxScaler(feature_range=(0,5))
+    scaler = MinMaxScaler(feature_range=(0, 5))
     X = pd.DataFrame(scaler.fit_transform(statistics), columns=statistics.columns)
-    n = df_myTeam.Player.count()
-    recommendations = NearestNeighbors(n_neighbors=n)
+    k = df_myTeam.Player.count()
+    recommendations = NearestNeighbors(n_neighbors=k)
     recommendations.fit(X)
-    player_index = recommendations.kneighbors(X,return_distance=False)
-    
-    
+    player_index = recommendations.kneighbors(X)[1]
+
     X['Player'] = df_myTeam['Player'].values.copy()
-    
+
     players = []
     cosine_similarity = []
     values = []
-   
+
+
     def get_index(x):
-        return df_myTeam[df_myTeam['Player']==x].index.tolist()[0]
+        return df_myTeam[df_myTeam['Player'] == x].index.tolist()[0]
+
 
     def get_position(x):
-        return df_myTeam[df_myTeam['Player']==x].Pos.tolist()[0]
+        return df_myTeam[df_myTeam['Player'] == x].Pos.tolist()[0]
+
 
     def recommend_similar_player_like(player):
         players.clear()
         cosine_similarity.clear()
         values.clear()
-        index=  get_index(player)
-        position=  get_position(player)
+        index = get_index(player)
+        position = get_position(player)
         for i in player_index[index][1:]:
-            if(fromWhere == "Only from player position" and df_myTeam.iloc[i]['Pos']==position):
+            if (fromWhere == "Only from player position" and df_myTeam.iloc[i]['Pos'] == position):
                 players.append(df_myTeam.iloc[i]['Player'])
-                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index,:24], X.iloc[i,:24]))*100,2))
+                cosine_similarity.append(
+                    np.round((1 - spatial.distance.cosine(X.iloc[index, :24], X.iloc[i, :24])) * 100, 2))
                 values.append(df_myTeam.loc[i, df_myTeam.columns != 'Player'])
-            elif(fromWhere == "From all position"):
+            elif (fromWhere == "From all position"):
                 players.append(df_myTeam.iloc[i]['Player'])
-                cosine_similarity.append(np.round((1 - spatial.distance.cosine(X.iloc[index,:24], X.iloc[i,:24]))*100,2))
+                cosine_similarity.append(
+                    np.round((1 - spatial.distance.cosine(X.iloc[index, :24], X.iloc[i, :24])) * 100, 2))
                 values.append(df_myTeam.loc[i, df_myTeam.columns != 'Player'])
-                
+
         recommended_players_df = pd.DataFrame(values, columns=df_myTeam.columns.values[1:])
         recommended_players_df.insert(0, "Player", players)
         recommended_players_df.insert(1, "Similarity %", cosine_similarity)
         recommended_players_df = recommended_players_df.sort_values(by=['Similarity %'], ascending=False)
-        recommended_players_df.reset_index(inplace = True,drop = True)
-        
-        st.write("Similar football players as", injuredPlayer+":")
-        
+        recommended_players_df.reset_index(inplace=True, drop=True)
+
+        st.write("Similar football players as", injuredPlayer + ":")
+
         return recommended_players_df.head(numberOfPlayers)
-    
+
+
     df_RecommendedPlayers = recommend_similar_player_like(injuredPlayer)
     AgGrid(df_RecommendedPlayers)
-    
+
     fig = go.Figure()
 
     index_injuredPlayer = get_index(injuredPlayer)
 
-    fig.add_trace(go.Scatterpolar(r=X.iloc[index_injuredPlayer,:24].values,
+    fig.add_trace(go.Scatterpolar(r=X.iloc[index_injuredPlayer, :24].values,
                                   theta=X.columns[:24],
                                   fill='toself',
-                                  name=X["Player"].iloc[index_injuredPlayer]+" (Injured player)",
+                                  name=X["Player"].iloc[index_injuredPlayer] + " (Injured player)",
                                   showlegend=True,
-                                 )
-                    )
+                                  )
+                  )
 
     for i in range(len(df_RecommendedPlayers.index)):
         index_RecommendedPlayers = get_index(df_RecommendedPlayers["Player"].iloc[i])
-        fig.add_trace(go.Scatterpolar(r=X.iloc[index_RecommendedPlayers,:24].values,
+        fig.add_trace(go.Scatterpolar(r=X.iloc[index_RecommendedPlayers, :24].values,
                                       theta=X.columns[:24],
                                       fill='toself',
-                                      name=X["Player"].iloc[index_RecommendedPlayers]+
-                                      " (Similarity "+str(df_RecommendedPlayers["Similarity %"].loc[i]) +" %)",
+                                      name=X["Player"].iloc[index_RecommendedPlayers] +
+                                           " (Similarity " + str(df_RecommendedPlayers["Similarity %"].loc[i]) + " %)",
                                       showlegend=True,
-                                     )
-                    )
+                                      )
+                      )
 
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True,range=[-0.50, 5.50])),title="Similar players to "+ injuredPlayer)
-    fig.update_layout(legend=dict(orientation="h",yanchor="bottom",y=-0.70,xanchor="auto",x=0.55))
-    
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[-0.50, 5.50])),
+                      title="Similar players to " + injuredPlayer)
+    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.70, xanchor="auto", x=0.55))
+
     st.plotly_chart(fig, use_container_width=True)
