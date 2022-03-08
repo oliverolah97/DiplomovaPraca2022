@@ -105,7 +105,7 @@ with st.sidebar.expander("Abbreviations", expanded=False):
     st.image(abbreviations)
 
 if selected == "Home":
-    st.markdown("<h1 style='text-align: center; color: black;'>Top 5 European leagues players stats</h1>",
+    st.markdown("<h1 style='text-align: center; color: black;'>Top 5 European leagues player stats</h1>",
                 unsafe_allow_html=True)
     gb = GridOptionsBuilder.from_dataframe(all_players)
     gb.configure_pagination()
